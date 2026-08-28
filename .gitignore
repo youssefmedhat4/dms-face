@@ -1,0 +1,27 @@
+# Byte-compiled / cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# Per-driver calibration profiles -- these encode a real person's EAR/gaze/
+# head-pose measurements captured during setup. Personal, not project code.
+profiles/*.json
+!profiles/.gitkeep
+
+# Camera intrinsics from calibrate_camera.py -- specific to one physical
+# camera, not portable, regenerate locally instead of committing.
+camera_calibration.json
+
+# Generated test clip -- 4 MB of one repeated frame, rebuilt in a second by
+# tests/make_test_video.py. Keep the repo lean.
+tests/assets/static_test.mp4
+
+# Per-session artifacts
+*.csv
+*.log
+bench_*.json
+snapshot_*.png

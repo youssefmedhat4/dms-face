@@ -1,0 +1,13 @@
+# Face subsystem -- Real-Time Driver Monitoring System
+#
+# Deliberately short. No dlib, no PyTorch, no TensorFlow: the whole pipeline is
+# one MediaPipe inference plus arithmetic.
+
+mediapipe>=1.0.0     # Tasks API. NOT <=0.10.x: see dms_face/landmarker.py
+opencv-python>=4.8   # use opencv-python-headless on a Pi running without a desktop
+numpy>=1.24
+psutil               # optional: CPU/RSS figures in bench.py
+
+# Raspberry Pi only -- install from apt, NOT pip:
+#   sudo apt install -y python3-picamera2 python3-libcamera
+#   (picamera2 has C++ bindings that pip cannot build)
