@@ -62,16 +62,38 @@ echo "    python       : $(python3 --version)"
 echo "    free disk    : $(df -h --output=avail . | tail -1 | tr -d ' ')"
 
 # --- system packages -------------------------------------------------------
-say "Installing system packages"
-sudo apt update
-sudo apt install -y --no-install-recommends python3-venv
+#
+# Only touches the system when something is actually missing. The previous
+# version ran `sudo apt update` unconditionally, which fails outright on a Pi
+# where sudo needs a password -- even when every package was already installed
+# (as on a stock Raspberry Pi OS Desktop image).
+say "Checking system packages"
+NEED_APT=()
+
+# Do not trust `import venv`: on Debian the module imports fine without the
+# python3-venv package, and only creating a venv shows whether it really works.
+probe="$(mktemp -d)"
+if python3 -m venv "$probe/v" >/dev/null 2>&1; then
+    echo "    python venv support : present"
+else
+    NEED_APT+=(python3-venv)
+fi
+rm -rf "$probe"
 
 if [ "$SKIP_CAMERA" = "1" ]; then
-    echo "    SKIP_CAMERA=1: not installing picamera2"
+    echo "    picamera2           : skipped (SKIP_CAMERA=1)"
 elif python3 -c "import picamera2" 2>/dev/null; then
-    echo "    picamera2 already present"
+    echo "    picamera2           : present"
 else
-    sudo apt install -y --no-install-recommends python3-picamera2
+    NEED_APT+=(python3-picamera2)
+fi
+
+if [ "${#NEED_APT[@]}" -gt 0 ]; then
+    echo "    missing             : ${NEED_APT[*]}  (needs sudo)"
+    sudo apt update
+    sudo apt install -y --no-install-recommends "${NEED_APT[@]}"
+else
+    echo "    nothing to install - no sudo needed"
 fi
 
 # --- virtualenv ------------------------------------------------------------
