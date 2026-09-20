@@ -44,7 +44,7 @@ echo "    python       : $(python3 --version)"
 # --- system packages -------------------------------------------------------
 say "Installing system packages"
 sudo apt update
-sudo apt install -y python3-venv python3-pip python3-picamera2 libatlas-base-dev
+sudo apt install -y python3-venv python3-pip python3-picamera2
 
 # --- virtualenv ------------------------------------------------------------
 # --system-site-packages is required: picamera2 ships C++ bindings via apt and
