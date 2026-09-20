@@ -1,13 +1,21 @@
-# Face subsystem -- Real-Time Driver Monitoring System
+# Development-machine install (laptop, desktop). One command:
+#
+#     pip install -r requirements.txt
+#
+# For the Raspberry Pi use ./install_pi.sh instead: it installs a leaner set
+# (see requirements-lean.txt).
 #
 # Deliberately short. No dlib, no PyTorch, no TensorFlow: the whole pipeline is
 # one MediaPipe inference plus arithmetic.
 
-mediapipe>=1.0.0     # Tasks API. NOT <=0.10.x: see dms_face/landmarker.py
-opencv-python>=4.8   # use opencv-python-headless on a Pi running without a desktop
-numpy>=1.24
-psutil               # optional: CPU/RSS figures in bench.py
+mediapipe>=1.0.0   # Tasks API. NOT <=0.10.x -- see dms_face/landmarker.py
 
-# Raspberry Pi only -- install from apt, NOT pip:
-#   sudo apt install -y python3-picamera2 python3-libcamera
-#   (picamera2 has C++ bindings that pip cannot build)
+# Do NOT add opencv-python here. mediapipe already depends on
+# opencv-contrib-python, which provides the same `cv2`; installing both puts two
+# packages' files in one directory, and whichever installed last silently wins.
+
+psutil             # optional: CPU/RSS figures in bench.py
+
+# Raspberry Pi camera only -- install from apt, NOT pip:
+#   sudo apt install -y --no-install-recommends python3-picamera2
+# (it has C++ bindings that pip cannot build)

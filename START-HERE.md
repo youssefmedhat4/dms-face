@@ -7,15 +7,33 @@ inference per frame — everything after that is arithmetic.
 ## Install on the Pi
 
 ```bash
-unzip dms-face-subsystem.zip
+git clone https://github.com/youssefmedhat4/dms-face.git
 cd dms-face
-chmod +x install_pi.sh
 ./install_pi.sh
 ```
 
-The script installs everything, runs 34 unit tests, and does an end-to-end
-check on a bundled clip **without needing the camera** — so if something is
-wrong you find out before hardware is in the picture.
+The script installs everything, runs 41 unit tests, and does an end-to-end
+check on a generated clip **without needing the camera** — so if something is
+wrong you find out before hardware is in the picture. It fails loudly, with the
+traceback, rather than exiting quietly.
+
+It is a **lean** install: it skips packages this project never uses (see
+`README.md`, *Installing lean*), which saves disk, RAM and start-up time. Two
+options, both environment variables:
+
+```bash
+WITH_GUI=1 ./install_pi.sh      # GUI build of OpenCV, for the live HUD window
+SKIP_CAMERA=1 ./install_pi.sh   # skip picamera2 until a camera is attached
+```
+
+**Over SSH there is no window,** and that is fine: `run.py` detects it, says so,
+and prints state changes to the terminal instead of crashing. Use `WITH_GUI=1`
+only when you are sitting at the Pi's own desktop.
+
+pip will print a red `ERROR: pip's dependency resolver ...` message during the
+install. That is expected and harmless — it is pip noticing the packages we
+skipped on purpose. The script says so before it happens, and its verification
+step afterwards proves nothing was needed.
 
 ## Then run it
 

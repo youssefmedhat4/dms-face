@@ -1,0 +1,30 @@
+# Lean runtime dependencies -- what the face subsystem actually imports.
+#
+# Used by install_pi.sh as:
+#
+#     pip install --no-deps "mediapipe>=1.0.0"
+#     pip install -r requirements-lean.txt
+#     pip install opencv-python-headless        # or opencv-python for a HUD window
+#
+# Why mediapipe goes in with --no-deps: its declared dependencies are
+#
+#     absl-py, certifi, numpy, sounddevice, flatbuffers, opencv-contrib-python,
+#     matplotlib
+#
+# of which this project needs only the first five listed below. matplotlib
+# (with pillow, fonttools, kiwisolver, contourpy, cycler, pyparsing,
+# python-dateutil, packaging, six) is imported by one MediaPipe plotting helper
+# we never call -- dms_face/_lean.py stubs it. sounddevice is only used by
+# MediaPipe's audio tasks, and is imported inside a try block. And
+# opencv-contrib-python is a second, larger copy of OpenCV that would fight the
+# one we choose.
+#
+# Measured in clean venvs (Windows, so absolute sizes differ from the Pi, but
+# the difference is what matters):  full 323 MB  ->  lean 246 MB.
+#
+# Constraints mirror mediapipe 1.0.1's own.
+
+numpy
+absl-py~=2.3
+flatbuffers~=25.9
+certifi

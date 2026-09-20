@@ -544,6 +544,72 @@ def test_poor_quality_profile_advises_the_user():
 
 
 
+# ---------------------------------------------------------- lean-install shims --
+def test_matplotlib_stub_lets_the_import_succeed_but_fails_loudly_on_use():
+    """MediaPipe hard-imports matplotlib.pyplot for one plotting helper. The
+    lean install has no matplotlib, so the stub must (a) let that import work
+    and (b) raise a clear error if anything actually uses it -- never silently
+    return garbage."""
+    from dms_face import _lean
+
+    names = ("matplotlib", "matplotlib.pyplot")
+    saved = {n: sys.modules.get(n) for n in names}
+    try:
+        for n in names:
+            sys.modules.pop(n, None)
+
+        assert _lean.install_matplotlib_stub(force=True) is True
+
+        import matplotlib.pyplot as plt  # must not raise
+
+        try:
+            plt.figure()
+        except AttributeError as exc:
+            assert "lean" in str(exc) and "pip install matplotlib" in str(exc)
+        else:
+            raise AssertionError("using the stub must raise, not succeed")
+
+        # A feature probe must get a truthful "no", not an exception. This is
+        # the regression: the first version raised ImportError here.
+        assert hasattr(plt, "figure") is False
+        assert hasattr(sys.modules["matplotlib"], "rcParams") is False
+    finally:
+        for n in names:
+            sys.modules.pop(n, None)
+            if saved[n] is not None:
+                sys.modules[n] = saved[n]
+
+
+def test_matplotlib_stub_is_a_noop_when_the_real_package_is_present():
+    from dms_face import _lean
+
+    if not _lean.matplotlib_available():
+        return  # nothing to prove on a machine without it
+    before = sys.modules.get("matplotlib")
+    assert _lean.install_matplotlib_stub() is False
+    assert sys.modules.get("matplotlib") is before
+
+
+def test_gui_check_refuses_without_a_display_on_linux():
+    """Over SSH, a GUI build of OpenCV does not raise -- Qt calls abort() and
+    the process vanishes with no traceback. So this has to be decided from the
+    environment, before any window function is touched."""
+    import run as app
+
+    saved = (sys.platform, os.environ.pop("DISPLAY", None), os.environ.pop("WAYLAND_DISPLAY", None))
+    try:
+        sys.platform = "linux"
+        ok, why = app.gui_available()
+    finally:
+        sys.platform = saved[0]
+        for key, val in (("DISPLAY", saved[1]), ("WAYLAND_DISPLAY", saved[2])):
+            if val is not None:
+                os.environ[key] = val
+
+    assert ok is False
+    assert "DISPLAY" in why
+
+
 if __name__ == "__main__":
     import traceback
 

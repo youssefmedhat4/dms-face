@@ -12,7 +12,7 @@ Runs identically on a laptop webcam (development) and a Raspberry Pi 5 with
 
 ```bash
 pip install -r requirements.txt
-python tests/test_core.py          # 31 tests, no camera needed
+python tests/test_core.py          # 41 tests, no camera needed
 python run.py --calibrate          # calibrate, then run live
 ```
 
@@ -216,6 +216,7 @@ dms_face/
   config.py        every tunable, with the reasoning for each value
   camera.py        Picamera2 / OpenCV / video-file sources, threaded
   landmarker.py    the one neural network
+  _lean.py         lets mediapipe import without matplotlib (lean install)
   metrics.py       EAR, openness, iris ratios
   headpose.py      solvePnP, angle decomposition, flip handling
   blink.py         four-state FSM, closure classification
@@ -229,7 +230,99 @@ dms_face/
 run.py             main application
 bench.py           performance measurement
 calibrate_camera.py  chessboard intrinsics
-tests/test_core.py   31 unit tests
+install_pi.sh        lean Raspberry Pi install + self-test
+requirements.txt     dev-machine install
+requirements-lean.txt  what the Pi install actually needs
+tests/test_core.py   41 unit tests
+```
+
+---
+
+## Installing lean
+
+`pip install mediapipe` is heavier than this project needs. mediapipe 1.0.1
+declares seven dependencies (read from its PyPI metadata):
+
+```
+absl-py  certifi  numpy  flatbuffers  sounddevice  matplotlib  opencv-contrib-python
+```
+
+Three of them are dead weight here:
+
+| Package | Why it is there | Why we skip it |
+|---|---|---|
+| `matplotlib` (+ pillow, fonttools, kiwisolver, contourpy, cycler, pyparsing, dateutil, packaging, six) | `drawing_utils.py` line 21 does an unconditional `import matplotlib.pyplot`, for one 3-D debug-plot helper | we never call it |
+| `opencv-contrib-python` | provides `cv2` | a second, larger OpenCV that would collide with the one we choose |
+| `sounddevice` | MediaPipe's audio tasks | imported inside a `try`; never reached |
+
+`install_pi.sh` therefore installs `mediapipe` with `--no-deps`, then only what
+the code imports (`requirements-lean.txt`), then **one** explicitly-chosen
+OpenCV. `dms_face/_lean.py` supplies a stub for the single matplotlib import so
+`import mediapipe` still succeeds; the stub raises a clear `AttributeError` if
+anything actually uses it, and does nothing at all when matplotlib is installed.
+
+**Measured** in clean virtual environments on a Windows machine (absolute sizes
+differ on the Pi; the differences are what carry over):
+
+| | old recipe | lean | change |
+|---|---|---|---|
+| Installed size | 323 MB | 246 MB | **−77 MB (−24%)** |
+| Packages installed | 22 | 7 | −15 |
+| RAM after loading the model | 131 MB | 89 MB | **−42 MB (−32%)** |
+| Start-up to model ready | 0.66 s | 0.29 s | **2.3× faster** |
+| Python modules loaded | 616 | 369 | −247 |
+| Throughput (1200-frame clip) | 126 FPS | 126–129 FPS | none |
+
+The memory and start-up gains are the more interesting result: in the old
+install, `import mediapipe` loads matplotlib into RAM on **every run** for a
+plotting function that is never used. Throughput is unchanged, so this is a free
+saving, not a trade.
+
+Other choices in the script, and the evidence behind each:
+
+- **`--no-cache-dir`** — pip otherwise keeps a copy of every wheel in
+  `~/.cache/pip`, roughly another 100 MB of SD card.
+- **`opencv-python-headless`** — ~36–40 MB against ~50 MB for the GUI wheel on
+  aarch64 (PyPI file sizes), and it drops the bundled Qt.
+- **`apt --no-install-recommends`** — `python3-picamera2` recommends
+  `python3-pyqt5` and `python3-opengl` (checked in the Raspberry Pi apt index,
+  bookworm and trixie), which serve only its preview window. We never open one.
+- **No system `python3-pip`** — the virtualenv brings its own.
+
+### What cannot be trimmed
+
+What remains is the actual work: the MediaPipe runtime (a single 111 MB
+`libmediapipe.so` in the aarch64 wheel), OpenCV, and numpy. Going lower would
+mean replacing MediaPipe's runtime with a bare TFLite interpreter and
+re-implementing its detector and tracking glue by hand. That is a large,
+risky rewrite for a saving I would not recommend chasing on a project
+timeline.
+
+### Do not install both OpenCV packages
+
+`opencv-python`, `opencv-python-headless` and `opencv-contrib-python` all
+install into the same `cv2/` directory. Installing two of them does not error;
+whichever finished last silently wins. A plain `pip install mediapipe`
+followed by `pip install opencv-python` (which the first version of this
+project's script did) leaves exactly that state. If you have it:
+
+```bash
+pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python
+pip install opencv-contrib-python        # or opencv-python-headless on the lean install
+```
+
+### Getting the HUD window back
+
+The lean install is headless. On a Pi with its own desktop:
+
+```bash
+WITH_GUI=1 ./install_pi.sh
+```
+
+or, in an existing environment, swap the one package:
+
+```bash
+pip uninstall -y opencv-python-headless && pip install opencv-python
 ```
 
 ---

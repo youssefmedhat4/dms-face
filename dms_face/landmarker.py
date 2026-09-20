@@ -19,7 +19,13 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from . import _lean
 from . import landmark_ids as L
+
+# Must run before anything imports mediapipe. `import mediapipe` hard-imports
+# matplotlib for one plotting helper we never call; without this the lean
+# install (no matplotlib) cannot even start. No-op when matplotlib is present.
+_lean.install_matplotlib_stub()
 
 
 @dataclass

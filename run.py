@@ -67,6 +67,32 @@ def build_config(args):
     return cfg
 
 
+def gui_available():
+    """(ok, reason). Can this process open an OpenCV window?
+
+    Two independent ways it can't, and both are the normal case on a Pi:
+
+      * SSH or a console session -- no DISPLAY. With a GUI build of OpenCV this
+        is worse than an exception: Qt calls abort() and the process dies with
+        no traceback, so it has to be checked BEFORE touching any window API.
+      * The lean install uses opencv-python-headless, whose window functions
+        raise cv2.error("function is not implemented").
+
+    Either way the right behaviour is to say so and carry on without a window,
+    not to crash the first time a frame is shown.
+    """
+    if sys.platform.startswith("linux") and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        return False, "no DISPLAY (SSH or console session)"
+    try:
+        cv2.namedWindow("_dms_probe", cv2.WINDOW_NORMAL)
+        cv2.destroyWindow("_dms_probe")
+    except cv2.error:
+        return False, "OpenCV is the headless build (no window support)"
+    return True, ""
+
+
 # --------------------------------------------------------------------------
 def run_calibration(source, pipeline, cfg, profile_name, display=True):
     """Two-phase routine. Returns a DriverProfile or None if it failed.
@@ -215,6 +241,13 @@ def main():
             print("           Run `python calibrate_camera.py` to remove the approximation.")
 
         display = not args.no_display
+        if display:
+            gui_ok, gui_why = gui_available()
+            if not gui_ok:
+                display = False
+                print(f"[display] no window: {gui_why}. Running headless - state changes")
+                print("          are printed below. For the live HUD, use a desktop session")
+                print("          with the GUI build of OpenCV (see README, 'Installing lean').")
         hud = Hud(w, h) if display else None
         alerter = Alerter(prefer=args.alert_backend, enabled=not args.no_alerts)
         print(f"[alerts] backend: {alerter.backend.name}")
